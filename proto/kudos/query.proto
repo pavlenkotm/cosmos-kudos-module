@@ -1,0 +1,55 @@
+syntax = "proto3";
+package kudos;
+
+option go_package = "github.com/pavlenkotm/cosmos-kudos-module/x/kudos/types";
+
+import "gogoproto/gogo.proto";
+import "google/api/annotations.proto";
+
+// Query defines the gRPC querier service.
+service Query {
+  // KudosBalance queries the kudos balance of an address
+  rpc KudosBalance(QueryKudosBalanceRequest) returns (QueryKudosBalanceResponse) {
+    option (google.api.http).get = "/kudos/balance/{address}";
+  }
+
+  // KudosLeaderboard queries the top kudos receivers
+  rpc KudosLeaderboard(QueryKudosLeaderboardRequest) returns (QueryKudosLeaderboardResponse) {
+    option (google.api.http).get = "/kudos/leaderboard";
+  }
+}
+
+// QueryKudosBalanceRequest is the request for querying kudos balance
+message QueryKudosBalanceRequest {
+  string address = 1;
+}
+
+// QueryKudosBalanceResponse is the response for kudos balance query
+message QueryKudosBalanceResponse {
+  uint64 balance = 1;
+}
+
+// QueryKudosLeaderboardRequest is the request for querying leaderboard
+message QueryKudosLeaderboardRequest {
+  uint32 limit = 1; // maximum number of entries to return
+}
+
+// LeaderboardEntry represents a single leaderboard entry
+message LeaderboardEntry {
+  string address = 1;
+  uint64 balance = 2;
+}
+
+// QueryKudosLeaderboardResponse is the response for leaderboard query
+message QueryKudosLeaderboardResponse {
+  repeated LeaderboardEntry entries = 1 [(gogoproto.nullable) = false];
+}
+
+// KudosHistory stores a single kudos transaction
+message KudosHistory {
+  string from_address = 1 [(gogoproto.moretags) = "yaml:\"from_address\""];
+  string to_address = 2 [(gogoproto.moretags) = "yaml:\"to_address\""];
+  uint64 amount = 3;
+  string comment = 4;
+  int64 timestamp = 5;
+}
