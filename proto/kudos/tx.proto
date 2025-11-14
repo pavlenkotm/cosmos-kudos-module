@@ -1,0 +1,28 @@
+syntax = "proto3";
+package kudos;
+
+option go_package = "github.com/pavlenkotm/cosmos-kudos-module/x/kudos/types";
+
+import "gogoproto/gogo.proto";
+import "cosmos/msg/v1/msg.proto";
+
+// Msg defines the kudos Msg service.
+service Msg {
+  option (cosmos.msg.v1.service) = true;
+
+  // SendKudos sends kudos from one address to another
+  rpc SendKudos(MsgSendKudos) returns (MsgSendKudosResponse);
+}
+
+// MsgSendKudos represents a message to send kudos
+message MsgSendKudos {
+  option (cosmos.msg.v1.signer) = "from_address";
+
+  string from_address = 1 [(gogoproto.moretags) = "yaml:\"from_address\""];
+  string to_address = 2 [(gogoproto.moretags) = "yaml:\"to_address\""];
+  uint64 amount = 3;
+  string comment = 4; // max 140 characters
+}
+
+// MsgSendKudosResponse is the response for SendKudos
+message MsgSendKudosResponse {}

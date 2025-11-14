@@ -1,0 +1,12 @@
+version: v1
+name: buf.build/pavlenkotm/cosmos-kudos-module
+deps:
+  - buf.build/cosmos/cosmos-sdk
+  - buf.build/cosmos/cosmos-proto
+  - buf.build/googleapis/googleapis
+breaking:
+  use:
+    - FILE
+lint:
+  use:
+    - DEFAULT
