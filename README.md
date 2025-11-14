@@ -1,0 +1,1 @@
+# cosmos-kudos-module
