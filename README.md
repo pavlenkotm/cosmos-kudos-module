@@ -14,6 +14,7 @@ Cosmos Kudos Module — это минимальный пример модуля 
 - История всех транзакций кудосов
 - CLI команды для взаимодействия с модулем
 - gRPC/REST API для запросов
+- Встроенный дневной лимит отправки с возможностью запросить остаток квоты
 
 ## Технологический стек
 
@@ -331,6 +332,45 @@ appd query kudos leaderboard 10
   ]
 }
 ```
+
+### Пример 4: Проверка дневной квоты отправителя
+
+```bash
+appd query kudos quota cosmos1sender...
+```
+
+**Ответ**:
+```json
+{
+  "used": "25",
+  "remaining": "75",
+  "limit": "100",
+  "reset_at": "1717699200"
+}
+```
+
+#### QueryDailyQuota
+
+Проверить, сколько кудосов адрес может отправить до окончания текущего 24-часового окна.
+
+**Запрос**:
+```protobuf
+message QueryDailyQuotaRequest {
+  string address = 1;
+}
+```
+
+**Ответ**:
+```protobuf
+message QueryDailyQuotaResponse {
+  uint64 used = 1;
+  uint64 remaining = 2;
+  uint64 limit = 3;
+  int64 reset_at = 4;
+}
+```
+
+**REST**: `GET /kudos/daily_quota/{address}`
 
 ## Архитектурные решения
 

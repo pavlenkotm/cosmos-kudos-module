@@ -14,6 +14,10 @@ import (
 	"github.com/pavlenkotm/cosmos-kudos-module/x/kudos/types"
 )
 
+const (
+	dailyLimitWindow = time.Duration(types.DailyQuotaWindowSeconds) * time.Second
+)
+
 // Keeper maintains the link to data storage and exposes getter/setter methods
 type Keeper struct {
 	cdc          codec.BinaryCodec
@@ -70,6 +74,65 @@ func (k Keeper) AddKudos(ctx sdk.Context, address string, amount uint64) {
 	currentBalance := k.GetKudosBalance(ctx, address)
 	newBalance := currentBalance + amount
 	k.SetKudosBalance(ctx, address, newBalance)
+}
+
+// getDailyUsage returns how many kudos were sent by the address in the current window and when it resets
+func (k Keeper) getDailyUsage(ctx sdk.Context, address string) (uint64, int64) {
+	store := k.storeService.OpenKVStore(ctx)
+	key := types.DailySentKey(address)
+
+	bz, err := store.Get(key)
+	if err != nil || bz == nil {
+		return 0, 0
+	}
+
+	used := binary.BigEndian.Uint64(bz[:8])
+	resetAt := int64(binary.BigEndian.Uint64(bz[8:]))
+
+	return used, resetAt
+}
+
+// setDailyUsage stores the sent kudos counter and reset time for an address
+func (k Keeper) setDailyUsage(ctx sdk.Context, address string, used uint64, resetAt int64) {
+	store := k.storeService.OpenKVStore(ctx)
+	key := types.DailySentKey(address)
+
+	bz := make([]byte, 16)
+	binary.BigEndian.PutUint64(bz[:8], used)
+	binary.BigEndian.PutUint64(bz[8:], uint64(resetAt))
+
+	if err := store.Set(key, bz); err != nil {
+		panic(err)
+	}
+}
+
+// rolloverDailyUsage ensures we work within a fresh quota window when it has expired
+func (k Keeper) rolloverDailyUsage(ctx sdk.Context, address string) (uint64, int64) {
+	used, resetAt := k.getDailyUsage(ctx, address)
+	now := ctx.BlockTime()
+
+	if resetAt == 0 || now.Unix() >= resetAt {
+		resetAt = now.Add(dailyLimitWindow).Unix()
+		used = 0
+		k.setDailyUsage(ctx, address, used, resetAt)
+	}
+
+	return used, resetAt
+}
+
+// trackDailyUsage updates the quota tracker and returns an error when the limit is exceeded
+func (k Keeper) trackDailyUsage(ctx sdk.Context, address string, amount uint64) (uint64, int64, error) {
+	used, resetAt := k.rolloverDailyUsage(ctx, address)
+	limit := types.DefaultDailyLimit
+
+	if used+amount > limit {
+		return used, resetAt, types.ErrDailyLimitExceeded
+	}
+
+	used += amount
+	k.setDailyUsage(ctx, address, used, resetAt)
+
+	return used, resetAt, nil
 }
 
 // GetHistoryCounter returns the current history counter
@@ -167,6 +230,25 @@ func (k Keeper) GetLeaderboard(ctx sdk.Context, limit uint32) []types.Leaderboar
 	return entries
 }
 
+// GetDailyQuota returns quota usage info for an address, refreshing the window if needed
+func (k Keeper) GetDailyQuota(ctx sdk.Context, address string) types.QueryDailyQuotaResponse {
+	used, resetAt := k.rolloverDailyUsage(ctx, address)
+	limit := types.DefaultDailyLimit
+	remaining := limit
+	if used >= limit {
+		remaining = 0
+	} else {
+		remaining = limit - used
+	}
+
+	return types.QueryDailyQuotaResponse{
+		Used:      used,
+		Remaining: remaining,
+		Limit:     limit,
+		ResetAt:   resetAt,
+	}
+}
+
 // SendKudos sends kudos from one address to another
 func (k Keeper) SendKudos(ctx sdk.Context, fromAddress, toAddress string, amount uint64, comment string) error {
 	// Validate addresses are different
@@ -177,6 +259,11 @@ func (k Keeper) SendKudos(ctx sdk.Context, fromAddress, toAddress string, amount
 	// Validate amount
 	if amount == 0 {
 		return types.ErrInvalidAmount
+	}
+
+	// Enforce daily quota for sender
+	if _, _, err := k.trackDailyUsage(ctx, fromAddress, amount); err != nil {
+		return err
 	}
 
 	// Add kudos to recipient

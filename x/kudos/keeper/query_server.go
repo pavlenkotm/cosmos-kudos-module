@@ -46,3 +46,16 @@ func (k Keeper) KudosLeaderboard(goCtx context.Context, req *types.QueryKudosLea
 		Entries: entries,
 	}, nil
 }
+
+// KudosDailyQuota implements the Query/KudosDailyQuota gRPC method
+func (k Keeper) KudosDailyQuota(goCtx context.Context, req *types.QueryDailyQuotaRequest) (*types.QueryDailyQuotaResponse, error) {
+	if req == nil {
+		return nil, types.ErrInvalidAddress
+	}
+
+	ctx := sdk.UnwrapSDKContext(goCtx)
+
+	quota := k.GetDailyQuota(ctx, req.Address)
+
+	return &quota, nil
+}
