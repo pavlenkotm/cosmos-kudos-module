@@ -11,4 +11,5 @@ var (
 	ErrInvalidAmount      = errors.Register(ModuleName, 3, "amount must be greater than 0")
 	ErrCommentTooLong     = errors.Register(ModuleName, 4, "comment exceeds 140 characters")
 	ErrInvalidLeaderboard = errors.Register(ModuleName, 5, "invalid leaderboard parameters")
+	ErrDailyLimitExceeded = errors.Register(ModuleName, 6, "daily kudos limit exceeded")
 )

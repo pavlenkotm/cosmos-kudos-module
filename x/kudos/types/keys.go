@@ -12,6 +12,12 @@ const (
 
 	// QuerierRoute is the querier route for the kudos module
 	QuerierRoute = ModuleName
+
+	// DefaultDailyLimit defines how many kudos a user can send within a 24h window
+	DefaultDailyLimit uint64 = 100
+
+	// DailyQuotaWindowSeconds defines how long a quota window lasts (24 hours)
+	DailyQuotaWindowSeconds = 60 * 60 * 24
 )
 
 var (
@@ -23,6 +29,9 @@ var (
 
 	// HistoryCounterKey is the key for the global history counter
 	HistoryCounterKey = []byte{0x03}
+
+	// DailySentPrefix is the prefix for daily sent counters
+	DailySentPrefix = []byte{0x04}
 )
 
 // KudosBalanceKey returns the key for a kudos balance
@@ -37,4 +46,9 @@ func KudosHistoryKey(id uint64) []byte {
 		bz[i] = byte(id >> (8 * (7 - i)))
 	}
 	return append(KudosHistoryPrefix, bz...)
+}
+
+// DailySentKey returns the key for storing daily sent data for an address
+func DailySentKey(address string) []byte {
+	return append(DailySentPrefix, []byte(address)...)
 }

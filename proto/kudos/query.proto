@@ -17,6 +17,11 @@ service Query {
   rpc KudosLeaderboard(QueryKudosLeaderboardRequest) returns (QueryKudosLeaderboardResponse) {
     option (google.api.http).get = "/kudos/leaderboard";
   }
+
+  // KudosDailyQuota queries the daily sending quota for an address
+  rpc KudosDailyQuota(QueryDailyQuotaRequest) returns (QueryDailyQuotaResponse) {
+    option (google.api.http).get = "/kudos/daily_quota/{address}";
+  }
 }
 
 // QueryKudosBalanceRequest is the request for querying kudos balance
@@ -43,6 +48,19 @@ message LeaderboardEntry {
 // QueryKudosLeaderboardResponse is the response for leaderboard query
 message QueryKudosLeaderboardResponse {
   repeated LeaderboardEntry entries = 1 [(gogoproto.nullable) = false];
+}
+
+// QueryDailyQuotaRequest is the request for querying daily quota usage
+message QueryDailyQuotaRequest {
+  string address = 1;
+}
+
+// QueryDailyQuotaResponse is the response for querying daily quota usage
+message QueryDailyQuotaResponse {
+  uint64 used = 1;
+  uint64 remaining = 2;
+  uint64 limit = 3;
+  int64 reset_at = 4;
 }
 
 // KudosHistory stores a single kudos transaction

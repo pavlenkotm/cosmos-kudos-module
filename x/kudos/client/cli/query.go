@@ -26,6 +26,7 @@ func GetQueryCmd() *cobra.Command {
 	cmd.AddCommand(
 		CmdQueryBalance(),
 		CmdQueryLeaderboard(),
+		CmdQueryDailyQuota(),
 	)
 
 	return cmd
@@ -101,6 +102,43 @@ Example:
 			}
 
 			res, err := queryClient.KudosLeaderboard(context.Background(), params)
+			if err != nil {
+				return err
+			}
+
+			return clientCtx.PrintProto(res)
+		},
+	}
+
+	flags.AddQueryFlagsToCmd(cmd)
+
+	return cmd
+}
+
+// CmdQueryDailyQuota returns a CLI command handler for querying the daily quota state
+func CmdQueryDailyQuota() *cobra.Command {
+	cmd := &cobra.Command{
+		Use:   "quota [address]",
+		Short: "Query daily kudos sending quota for an address",
+		Long: `Check how many kudos an address can still send in the current 24h window.
+
+Example:
+  kudos quota cosmos1...
+`,
+		Args: cobra.ExactArgs(1),
+		RunE: func(cmd *cobra.Command, args []string) error {
+			clientCtx, err := client.GetClientQueryContext(cmd)
+			if err != nil {
+				return err
+			}
+
+			queryClient := types.NewQueryClient(clientCtx)
+
+			params := &types.QueryDailyQuotaRequest{
+				Address: args[0],
+			}
+
+			res, err := queryClient.KudosDailyQuota(context.Background(), params)
 			if err != nil {
 				return err
 			}

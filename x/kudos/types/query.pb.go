@@ -6,11 +6,11 @@ package types
 import (
 	context "context"
 	fmt "fmt"
+	proto "github.com/cosmos/gogoproto/proto"
+	_ "google.golang.org/genproto/googleapis/api/annotations"
 	grpc "google.golang.org/grpc"
 	codes "google.golang.org/grpc/codes"
 	status "google.golang.org/grpc/status"
-	proto "github.com/cosmos/gogoproto/proto"
-	_ "google.golang.org/genproto/googleapis/api/annotations"
 	math "math"
 )
 
@@ -69,6 +69,27 @@ func (m *QueryKudosLeaderboardResponse) Reset()         { *m = QueryKudosLeaderb
 func (m *QueryKudosLeaderboardResponse) String() string { return proto.CompactTextString(m) }
 func (*QueryKudosLeaderboardResponse) ProtoMessage()    {}
 
+// QueryDailyQuotaRequest is the request for querying daily quota usage
+type QueryDailyQuotaRequest struct {
+	Address string `protobuf:"bytes,1,opt,name=address,proto3" json:"address,omitempty"`
+}
+
+func (m *QueryDailyQuotaRequest) Reset()         { *m = QueryDailyQuotaRequest{} }
+func (m *QueryDailyQuotaRequest) String() string { return proto.CompactTextString(m) }
+func (*QueryDailyQuotaRequest) ProtoMessage()    {}
+
+// QueryDailyQuotaResponse is the response for querying daily quota usage
+type QueryDailyQuotaResponse struct {
+	Used      uint64 `protobuf:"varint,1,opt,name=used,proto3" json:"used,omitempty"`
+	Remaining uint64 `protobuf:"varint,2,opt,name=remaining,proto3" json:"remaining,omitempty"`
+	Limit     uint64 `protobuf:"varint,3,opt,name=limit,proto3" json:"limit,omitempty"`
+	ResetAt   int64  `protobuf:"varint,4,opt,name=reset_at,json=resetAt,proto3" json:"reset_at,omitempty"`
+}
+
+func (m *QueryDailyQuotaResponse) Reset()         { *m = QueryDailyQuotaResponse{} }
+func (m *QueryDailyQuotaResponse) String() string { return proto.CompactTextString(m) }
+func (*QueryDailyQuotaResponse) ProtoMessage()    {}
+
 // KudosHistory stores a single kudos transaction
 type KudosHistory struct {
 	FromAddress string `protobuf:"bytes,1,opt,name=from_address,json=fromAddress,proto3" json:"from_address,omitempty" yaml:"from_address"`
@@ -88,6 +109,8 @@ func init() {
 	proto.RegisterType((*QueryKudosLeaderboardRequest)(nil), "kudos.QueryKudosLeaderboardRequest")
 	proto.RegisterType((*LeaderboardEntry)(nil), "kudos.LeaderboardEntry")
 	proto.RegisterType((*QueryKudosLeaderboardResponse)(nil), "kudos.QueryKudosLeaderboardResponse")
+	proto.RegisterType((*QueryDailyQuotaRequest)(nil), "kudos.QueryDailyQuotaRequest")
+	proto.RegisterType((*QueryDailyQuotaResponse)(nil), "kudos.QueryDailyQuotaResponse")
 	proto.RegisterType((*KudosHistory)(nil), "kudos.KudosHistory")
 }
 
@@ -105,6 +128,8 @@ type QueryClient interface {
 	KudosBalance(ctx context.Context, in *QueryKudosBalanceRequest, opts ...grpc.CallOption) (*QueryKudosBalanceResponse, error)
 	// KudosLeaderboard queries the top kudos receivers
 	KudosLeaderboard(ctx context.Context, in *QueryKudosLeaderboardRequest, opts ...grpc.CallOption) (*QueryKudosLeaderboardResponse, error)
+	// KudosDailyQuota queries the daily sending quota for an address
+	KudosDailyQuota(ctx context.Context, in *QueryDailyQuotaRequest, opts ...grpc.CallOption) (*QueryDailyQuotaResponse, error)
 }
 
 type queryClient struct {
@@ -133,12 +158,23 @@ func (c *queryClient) KudosLeaderboard(ctx context.Context, in *QueryKudosLeader
 	return out, nil
 }
 
+func (c *queryClient) KudosDailyQuota(ctx context.Context, in *QueryDailyQuotaRequest, opts ...grpc.CallOption) (*QueryDailyQuotaResponse, error) {
+	out := new(QueryDailyQuotaResponse)
+	err := c.cc.Invoke(ctx, "/kudos.Query/KudosDailyQuota", in, out, opts...)
+	if err != nil {
+		return nil, err
+	}
+	return out, nil
+}
+
 // QueryServer is the server API for Query service.
 type QueryServer interface {
 	// KudosBalance queries the kudos balance of an address
 	KudosBalance(context.Context, *QueryKudosBalanceRequest) (*QueryKudosBalanceResponse, error)
 	// KudosLeaderboard queries the top kudos receivers
 	KudosLeaderboard(context.Context, *QueryKudosLeaderboardRequest) (*QueryKudosLeaderboardResponse, error)
+	// KudosDailyQuota queries the daily sending quota for an address
+	KudosDailyQuota(context.Context, *QueryDailyQuotaRequest) (*QueryDailyQuotaResponse, error)
 }
 
 // UnimplementedQueryServer can be embedded to have forward compatible implementations.
@@ -151,6 +187,10 @@ func (*UnimplementedQueryServer) KudosBalance(ctx context.Context, req *QueryKud
 
 func (*UnimplementedQueryServer) KudosLeaderboard(ctx context.Context, req *QueryKudosLeaderboardRequest) (*QueryKudosLeaderboardResponse, error) {
 	return nil, status.Errorf(codes.Unimplemented, "method KudosLeaderboard not implemented")
+}
+
+func (*UnimplementedQueryServer) KudosDailyQuota(ctx context.Context, req *QueryDailyQuotaRequest) (*QueryDailyQuotaResponse, error) {
+	return nil, status.Errorf(codes.Unimplemented, "method KudosDailyQuota not implemented")
 }
 
 func RegisterQueryServer(s grpc.ServiceRegistrar, srv QueryServer) {
@@ -193,6 +233,24 @@ func _Query_KudosLeaderboard_Handler(srv interface{}, ctx context.Context, dec f
 	return interceptor(ctx, in, info, handler)
 }
 
+func _Query_KudosDailyQuota_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
+	in := new(QueryDailyQuotaRequest)
+	if err := dec(in); err != nil {
+		return nil, err
+	}
+	if interceptor == nil {
+		return srv.(QueryServer).KudosDailyQuota(ctx, in)
+	}
+	info := &grpc.UnaryServerInfo{
+		Server:     srv,
+		FullMethod: "/kudos.Query/KudosDailyQuota",
+	}
+	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
+		return srv.(QueryServer).KudosDailyQuota(ctx, req.(*QueryDailyQuotaRequest))
+	}
+	return interceptor(ctx, in, info, handler)
+}
+
 var _Query_serviceDesc = grpc.ServiceDesc{
 	ServiceName: "kudos.Query",
 	HandlerType: (*QueryServer)(nil),
@@ -204,6 +262,10 @@ var _Query_serviceDesc = grpc.ServiceDesc{
 		{
 			MethodName: "KudosLeaderboard",
 			Handler:    _Query_KudosLeaderboard_Handler,
+		},
+		{
+			MethodName: "KudosDailyQuota",
+			Handler:    _Query_KudosDailyQuota_Handler,
 		},
 	},
 	Streams:  []grpc.StreamDesc{},

@@ -2,6 +2,7 @@ package keeper_test
 
 import (
 	"testing"
+	"time"
 
 	"cosmossdk.io/log"
 	"cosmossdk.io/store"
@@ -36,7 +37,7 @@ func setupKeeper(t *testing.T) (keeper.Keeper, sdk.Context) {
 		log.NewNopLogger(),
 	)
 
-	ctx := sdk.NewContext(stateStore, cmtproto.Header{}, false, log.NewNopLogger())
+	ctx := sdk.NewContext(stateStore, cmtproto.Header{Time: time.Now()}, false, log.NewNopLogger())
 
 	return k, ctx
 }
@@ -89,6 +90,40 @@ func TestSendKudos(t *testing.T) {
 	// Check history counter
 	counter := k.GetHistoryCounter(ctx)
 	require.Equal(t, uint64(1), counter)
+}
+
+func TestDailyQuotaEnforcement(t *testing.T) {
+	k, ctx := setupKeeper(t)
+
+	fromAddr := "cosmos1from"
+	toAddr := "cosmos1to"
+
+	err := k.SendKudos(ctx, fromAddr, toAddr, types.DefaultDailyLimit, "using up quota")
+	require.NoError(t, err)
+
+	err = k.SendKudos(ctx, fromAddr, "cosmos1overflow", 1, "should exceed")
+	require.ErrorIs(t, err, types.ErrDailyLimitExceeded)
+
+	quota := k.GetDailyQuota(ctx, fromAddr)
+	require.Equal(t, types.DefaultDailyLimit, quota.Used)
+	require.Equal(t, uint64(0), quota.Remaining)
+}
+
+func TestDailyQuotaResetAfterWindow(t *testing.T) {
+	k, ctx := setupKeeper(t)
+
+	fromAddr := "cosmos1from"
+	toAddr := "cosmos1to"
+
+	require.NoError(t, k.SendKudos(ctx, fromAddr, toAddr, 10, "first"))
+
+	ctx = ctx.WithBlockHeader(cmtproto.Header{Time: ctx.BlockTime().Add(time.Duration(types.DailyQuotaWindowSeconds+3600) * time.Second)})
+
+	require.NoError(t, k.SendKudos(ctx, fromAddr, toAddr, types.DefaultDailyLimit, "after reset"))
+
+	quota := k.GetDailyQuota(ctx, fromAddr)
+	require.Equal(t, types.DefaultDailyLimit, quota.Used)
+	require.Equal(t, uint64(0), quota.Remaining)
 }
 
 func TestSendKudosToSelf(t *testing.T) {
